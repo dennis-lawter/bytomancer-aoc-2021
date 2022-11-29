@@ -9,8 +9,8 @@ fn main() {
     println!("Running: {}", func);
 
     match &func[..] {
-        "d1s1" => solutions::d1s1(),
-        "d1s2" => solutions::d1s2(),
+        "d1s1" => solutions::day1::d1s1(),
+        "d1s2" => solutions::day1::d1s2(),
         _ => {},
     }
 }
