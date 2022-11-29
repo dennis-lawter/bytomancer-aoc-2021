@@ -5,13 +5,14 @@ use std::path::Path;
 use dotenv;
 use reqwest::Url;
 
-pub fn get_input_as_string(input_url: &String) -> String {
-    match get_file_path_from_cache(input_url) {
+pub fn get_input_as_string(input_url: &str) -> String {
+	let url = input_url.to_string();
+    match get_file_path_from_cache(&url) {
         Some(path) => match get_input_as_string_from_cache(&path) {
-            Ok(result) => result,
-            Err(_) => get_input_as_string_from_site(input_url),
+            Ok(result) => result.trim_end().to_string(),
+            Err(_) => get_input_as_string_from_site(&url).trim_end().to_string(),
         },
-        None => get_input_as_string_from_site(input_url),
+        None => get_input_as_string_from_site(&url).trim_end().to_string(),
     }
 }
 
