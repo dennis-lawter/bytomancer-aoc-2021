@@ -1,8 +1,6 @@
-use serde_json::json;
-use std::collections::HashMap;
-use serde::Serialize;
-use std::io::prelude::*;
-use std::{fs::File, io::BufReader};
+use std::fs::{File, self};
+use std::io::{prelude::*, ErrorKind};
+use std::path::Path;
 
 use dotenv;
 use reqwest::Url;
@@ -17,6 +15,8 @@ pub fn get_input_as_string(input_url: &String) -> String {
     }
 }
 
+const URL_PREFIX: &str = "https://adventofcode.com/";
+
 fn get_input_as_string_from_cache(path: &String) -> Result<String, std::io::Error> {
     let mut file = File::open(path)?;
     let mut contents = String::new();
@@ -25,47 +25,33 @@ fn get_input_as_string_from_cache(path: &String) -> Result<String, std::io::Erro
     Ok(contents)
 }
 
-const CACHE_FILENAME: &str = "cache.json";
-
-fn create_new_cache_file() -> File {
-    let mut file = File::create(CACHE_FILENAME).expect("Could not create cache file.");
-    file.write_all(b"{}")
-        .expect("Could not write to new cache file.");
-    File::open(CACHE_FILENAME).expect("Error opening new cache file.")
+fn get_path_from_input_url(url: &String) -> String {
+    let url_postfix = url
+        .clone()
+        .strip_prefix(URL_PREFIX)
+        .expect("Invalid domain.")
+        .to_string();
+    format!("{}{}{}", "_cache/", url_postfix, ".txt")
 }
 
-fn write_new_input_locally_and_cache(url: &String, input: &String) -> Result<(), std::io::Error> {
-    let md5checksum = md5::compute(input);
-    let path = format!("{}{:x}{}", "_cache/", md5checksum, ".txt");
+fn write_new_input_locally(url: &String, input: &String) -> Result<(), std::io::Error> {
+    let path = get_path_from_input_url(url);
+	let path_obj = Path::new(&path);
+	println!("CACHE PATH: {}", path);
+	let parent = Path::parent(path_obj).ok_or(std::io::Error::new(ErrorKind::Other, "Invalid path."))?;
+	fs::create_dir_all(parent)?;
     let mut file = File::create(path.clone())?;
     file.write_all(input.as_bytes())?;
-
-    let cache_file = File::options()
-        .read(true)
-        .write(true)
-        .open(CACHE_FILENAME)?;
-    let reader = BufReader::new(cache_file);
-    let mut cache_records: HashMap<String, String> =
-        serde_json::from_reader(reader).expect("Could not read cache file.");
-    cache_records.insert(url.to_string(), path);
-    cache_file.write_all(serde_json::to_string(&cache_records))?;
 
     Ok(())
 }
 
 fn get_file_path_from_cache(input_url: &String) -> Option<String> {
-    let file: File;
-    let file_open = File::open(CACHE_FILENAME);
-    match file_open {
-        Ok(f) => file = f,
-        Err(_) => file = create_new_cache_file(),
+    let path = get_path_from_input_url(input_url);
+    match File::open(path.clone()) {
+        Ok(_) => Some(path),
+        Err(_) => None,
     }
-
-    let reader = BufReader::new(file);
-    let cache_records: HashMap<String, String> =
-        serde_json::from_reader(reader).expect("Could not read cache file.");
-
-    cache_records.get(input_url).clone().cloned()
 }
 
 fn get_input_as_string_from_site(input_url: &String) -> String {
@@ -81,7 +67,9 @@ fn get_input_as_string_from_site(input_url: &String) -> String {
         .build()
         .unwrap();
 
-    let res = client.get(url).header("cookie", cookie).send().unwrap();
+    let response = client.get(url).header("cookie", cookie).send().unwrap();
+	let body = response.text().unwrap();
+	write_new_input_locally(input_url, &body).expect("An error occurred while writing the cache.");
 
-    res.text().unwrap()
+	body
 }
