@@ -6,7 +6,9 @@ mod solutions;
 fn main() {
     let args: Vec<String> = env::args().collect();
     let func = args.get(1).expect("Must provide a runtime argument.");
-    println!("Running: {}", func);
+    println!("----------------------------------------");
+    println!("| Running: {}", func);
+    println!("----------------------------------------");
 
     match &func[..] {
         "d1s1" => solutions::day1::d1s1(),
